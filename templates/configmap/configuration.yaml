@@ -63,7 +63,17 @@ data:
       { username = "{{ $.Values.proxysql.mysql.monitoring.username }}" , password = "{{ $.Values.proxysql.mysql.monitoring.password }}" , default_hostgroup = 0 , active = 1 }
     )
 
-
+    proxysql_servers =
+    (
+      {{ range $i, $e := until $replicas }}
+      {
+        hostname="{{ $fullname }}-{{ $e }}.{{ $fullname }}-headless"
+        port=6032
+        weight={{ $i }}
+        comment="{{ $fullname }}-{{ $e }}.{{ $fullname }}"
+      }{{ if lt $i (sub $replicas 1) }},{{ end }}
+      {{ end }}
+    )
 
     #defines MySQL Query Rules
     mysql_query_rules:
@@ -161,12 +171,6 @@ data:
       /bin/echo "Diffs detected, executing"
       /usr/bin/mysql -uadmin -p{{ .Values.proxysql.admin.adminPassword }} -h127.0.0.1 -P6032 -e"
         
-        DELETE FROM proxysql_servers;
-
-        {{ range $i, $e := until $replicas}}
-        INSERT INTO proxysql_servers (hostname,port,weight,comment) 
-          VALUES ('{{ $fullname }}-{{ $e }}.{{ $fullname }}-headless',6032,{{ $e }},'{{ $fullname }}-{{ $e }}.{{ $fullname }}-headless');
-        {{ end }}
         LOAD PROXYSQL SERVERS TO RUNTIME;
         SAVE PROXYSQL SERVERS TO DISK;
 
