@@ -126,6 +126,9 @@ data:
 
     # this needs to be smarter. It should be able to tell if the container is running
     # and accepting traffic
+    if [ ! -f /tmp/cs.file ]; then
+      exit 1
+    fi
     exit 0
 
   readiness.sh: |
@@ -163,22 +166,15 @@ data:
 
   config-watcher.sh: |
     #!/bin/bash
-    CUR_CS=$(/usr/bin/md5sum $0 | /usr/bin/awk '{print $1}')
-    PRE_CS=$(/bin/cat /tmp/cs.file | /usr/bin/awk '{print $1}')
 
-    if [[ $CUR_CS != $PRE_CS ]];
-    then
-      /bin/echo "Diffs detected, executing"
+    if [ ! -f /tmp/cs.file ]; then
       /usr/bin/mysql -uadmin -p{{ .Values.proxysql.admin.adminPassword }} -h127.0.0.1 -P6032 -e"
-        
-        LOAD PROXYSQL SERVERS TO RUNTIME;
-        SAVE PROXYSQL SERVERS TO DISK;
-
         LOAD MYSQL QUERY RULES TO RUNTIME;
         LOAD MYSQL SERVERS TO RUNTIME;
         LOAD MYSQL USERS TO RUNTIME;
-
       "
-      /bin/echo $CUR_CS > /tmp/cs.file
+      touch /tmp/cs.file
     fi
+
+    exit 0
 
