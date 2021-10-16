@@ -42,10 +42,10 @@ spec:
               protocol: TCP
           livenessProbe:
             exec:
-              command: ["/bin/bash","/usr/local/sbin/liveness.sh"]
+              command: ["/usr/local/sbin/liveness.sh"]
           readinessProbe:
             exec:
-              command: ["/bin/bash","/usr/local/sbin/readiness.sh"]
+              command: ["/usr/local/sbin/readiness.sh"]
           lifecycle:
             preStop:
               exec:
@@ -87,6 +87,10 @@ spec:
           configMap:
             name: {{ include "proxysql.fullname" . }}-config
             defaultMode: 0555
+  {{- if not .Values.proxysql.storage.persistent }}
+        - name: {{ include "proxysql.fullname" . }}-data
+          emptyDir: {}
+  {{ else }}
   volumeClaimTemplates:
     - metadata:
         name: {{ include "proxysql.fullname" . }}-data
@@ -95,3 +99,4 @@ spec:
         resources:
           requests:
             storage: 500Mi
+  {{ end -}}

@@ -15,6 +15,54 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+proxysql:
+  # Admin variables. See https://proxysql.com/documentation/global-variables/admin-variables/
+  # These variables affect settings for ProxySQL on port 6032.
+  admin:
+    # The admin user will always exist but you can customize
+    # the password here. This user will only be allowed from
+    # 127.0.0.1. 
+    adminPassword: "admin"
+
+    # The cluster admin user is different from the admin user above. 
+    # This user is allowed to connect to the cluster "remotely" and
+    # will be used to coordinate and exchange settings across instances.
+    # It is critical that this be a strong password to protect ProxySQL
+    # configuration from tenants.
+    clusterAdminUser: "radmin"
+    clusterAdminPassword: "radmin"
+
+  # MySQL variables. See https://proxysql.com/documentation/global-variables/mysql-variables/
+  # These variables affect settings for ProxySQL on port 6033.
+  mysql:
+    # Monitoring user that should exist on all backend MySQL servers
+    # and should only be allowed to connect and have no further permissions
+    monitoring:
+      username: "monitor"
+      password: "hCbN4h2UJGW3ezUK"
+
+    # Normal MySQL users that should exist at install time. 
+    # These users must match 1:1 with backend MySQL users.
+    # You can specify as many users as you want but generally
+    # it is recommended you do this at runtime.
+    # See https://proxysql.com/documentation/main-runtime/#mysql_users
+    # and https://proxysql.com/documentation/Users-configuration/
+    users:
+      - username: "root"
+        password: "fphzL9v8NufZqftH"
+
+  # Should ProxySQL configuration be backed by an actual volume?
+  # If set to 'false' the configuration will be stored in an emptyDir
+  # and all data is lost during restarts.
+  # 
+  # If set to 'true' the configuration will be stored on a persistent 
+  # volume using the default storage class.
+  #
+  # Using persistent storage is more durable
+  storage:
+    persistent: false
+    storageClass: ""
+
 serviceAccount:
   # Specifies whether a service account should be created
   create: true
@@ -41,22 +89,6 @@ service:
   type: ClusterIP
   port: 6033
 
-ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-  hosts:
-    - host: chart-example.local
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
-
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
   # choice for the user. This also increases chances charts run on environments with little
@@ -74,4 +106,17 @@ nodeSelector: {}
 
 tolerations: []
 
-affinity: {}
+# Default Anti Affinity rules to prefer putting copies of
+# ProxySQL onto different hosts to keep traffic balanced
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: "app.kubernetes.io/name"
+                operator: In
+                values:
+                  - proxysql
+          topologyKey: "kubernetes.io/hostname"

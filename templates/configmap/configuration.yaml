@@ -10,10 +10,10 @@ data:
 
     admin_variables=
     {
-      admin_credentials="admin:admin;radmin:radmin"
+      admin_credentials="admin:{{ .Values.proxysql.admin.adminPassword }};{{ .Values.proxysql.admin.clusterAdminUser }}:{{ .Values.proxysql.admin.clusterAdminPassword }}"
       mysql_ifaces="0.0.0.0:6032"
-      cluster_username="radmin"
-      cluster_password="radmin"
+      cluster_username="{{ .Values.proxysql.admin.clusterAdminUser }}"
+      cluster_password="{{ .Values.proxysql.admin.clusterAdminPassword }}"
       cluster_check_interval_ms=200
       cluster_check_status_frequency=100
       cluster_mysql_query_rules_save_to_disk=true
@@ -56,8 +56,11 @@ data:
     # defines all the MySQL users
     mysql_users:
     (
-      { username = "root" , password = "XHCO2ydDXj" , default_hostgroup = 0 , active = 1 },
-      { username = "monitor" , password = "monitor" , default_hostgroup = 0 , active = 1 }
+      {{ range $i, $e := .Values.proxysql.mysql.users -}}
+      { username = "{{ $e.username }}" , password = "{{ $e.password }}" , default_hostgroup = 0 , active = 1 },
+      {{- end}}
+
+      { username = "{{ $.Values.proxysql.mysql.monitoring.username }}" , password = "{{ $.Values.proxysql.mysql.monitoring.password }}" , default_hostgroup = 0 , active = 1 }
     )
 
 
@@ -120,7 +123,7 @@ data:
     set -e
 
     mbin="/usr/bin/mysql"
-    lcon="-h127.0.0.1 -P6032 -uadmin -padmin"
+    lcon="-h127.0.0.1 -P6032 -uadmin -p{{ .Values.proxysql.admin.adminPassword }}"
     opts="-NB"
 
     proxysql_peers_available=$($mbin $lcon $opts -e"select count(*) from runtime_proxysql_servers")
@@ -136,12 +139,12 @@ data:
 
   drain.sh: |
     #!/bin/bash
-    CONNECTIONS=$(mysqladmin processlist -P6032 -h127.0.0.1 -uadmin -padmin | grep [0-9] -c)
+    CONNECTIONS=$(mysqladmin processlist -P6032 -h127.0.0.1 -uadmin -p{{ .Values.proxysql.admin.adminPassword }} | grep [0-9] -c)
     echo "${CONNECTIONS}"
 
     while [[ ${CONNECTIONS} -gt 0 ]]; do
       sleep 5
-      CONNECTIONS=$(mysqladmin processlist -P6032 -h127.0.0.1 -uadmin -padmin | grep [0-9] -c)
+      CONNECTIONS=$(mysqladmin processlist -P6032 -h127.0.0.1 -uadmin -p{{ .Values.proxysql.admin.adminPassword }} | grep [0-9] -c)
       echo "${CONNECTIONS}"
     
     done
@@ -156,7 +159,7 @@ data:
     if [[ $CUR_CS != $PRE_CS ]];
     then
       /bin/echo "Diffs detected, executing"
-      /usr/bin/mysql -uadmin -padmin -h127.0.0.1 -P6032 -e"
+      /usr/bin/mysql -uadmin -p{{ .Values.proxysql.admin.adminPassword }} -h127.0.0.1 -P6032 -e"
         
         DELETE FROM proxysql_servers;
 
