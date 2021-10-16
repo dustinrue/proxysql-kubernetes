@@ -5,9 +5,7 @@ metadata:
   labels:
     {{- include "proxysql.labels" . | nindent 4 }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
-  {{- end }}
   selector:
     matchLabels:
       {{- include "proxysql.selectorLabels" . | nindent 6 }}
@@ -21,7 +19,7 @@ spec:
       labels:
         {{- include "proxysql.selectorLabels" . | nindent 8 }}
     spec:
-      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriod | default "10" }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriod | default "300" }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -42,14 +40,16 @@ spec:
             - name: controller
               containerPort: 6032
               protocol: TCP
-          # livenessProbe:
-          #   httpGet:
-          #     path: /
-          #     port: http
-          # readinessProbe:
-          #   httpGet:
-          #     path: /
-          #     port: http
+          livenessProbe:
+            exec:
+              command: ["/bin/bash","/usr/local/sbin/liveness.sh"]
+          readinessProbe:
+            exec:
+              command: ["/bin/bash","/usr/local/sbin/readiness.sh"]
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/usr/local/sbin/drain.sh"]
           volumeMounts:
             - name: {{ include "proxysql.fullname" . }}-data
               mountPath: /var/lib/proxysql
@@ -57,8 +57,17 @@ spec:
               mountPath: /etc/proxysql.cnf
               subPath: proxysql.cnf
             - name: {{ include "proxysql.fullname" . }}-config
-              mountPath: /tmp/hg-scheduler.bash
-              subPath: hg-scheduler.bash
+              mountPath: /usr/local/sbin/config-watcher.sh
+              subPath: config-watcher.sh
+            - name: {{ include "proxysql.fullname" . }}-config
+              mountPath: /usr/local/sbin/liveness.sh
+              subPath: liveness.sh              
+            - name: {{ include "proxysql.fullname" . }}-config
+              mountPath: /usr/local/sbin/readiness.sh
+              subPath: readiness.sh              
+            - name: {{ include "proxysql.fullname" . }}-config
+              mountPath: /usr/local/sbin/drain.sh
+              subPath: drain.sh              
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
@@ -77,6 +86,7 @@ spec:
         - name: {{ include "proxysql.fullname" . }}-config
           configMap:
             name: {{ include "proxysql.fullname" . }}-config
+            defaultMode: 0555
   volumeClaimTemplates:
     - metadata:
         name: {{ include "proxysql.fullname" . }}-data

@@ -53,14 +53,6 @@ data:
       connect_retries_on_failure=10
     }
 
-    # defines all the MySQL servers
-    # mysql_servers =
-    # (
-    #   { address="mysql-8.default.svc.cluster.local" , port=3306 , hostgroup=1, max_connections=5000 },
-    #   { address="mysql-8-slave.default.svc.cluster.local" , port=3306 , hostgroup=1, max_connections=5000 },
-    # )
-
-
     # defines all the MySQL users
     mysql_users:
     (
@@ -96,7 +88,7 @@ data:
         active=1
         interval_ms=5000
         filename="/bin/bash"
-        arg1="/tmp/hg-scheduler.bash"
+        arg1="/usr/local/sbin/config-watcher.sh"
         arg2=""
         arg3=""
         arg4=""
@@ -115,7 +107,15 @@ data:
     )
 
 
-  probe-proxysql.bash: |
+  liveness.sh: |
+    #!/bin/bash
+    set -e
+
+    # this needs to be smarter. It should be able to tell if the container is running
+    # and accepting traffic
+    exit 0
+
+  readiness.sh: |
     #!/bin/bash
     set -e
 
@@ -123,17 +123,32 @@ data:
     lcon="-h127.0.0.1 -P6032 -uadmin -padmin"
     opts="-NB"
 
-    hg0_avail=$($mbin $lcon $opts -e"select count(*) from runtime_mysql_servers where hostgroup_id = 0")
-    exit 0
-    if [[ $hg0_avail -eq 1 ]];
+    proxysql_peers_available=$($mbin $lcon $opts -e"select count(*) from runtime_proxysql_servers")
+  
+    if [[ $proxysql_peers_available -eq {{ $replicas }} ]];
     then
-      echo "HG0 Availability Success"
+      echo "ProxySQL peers configured"
       exit 0
     else
-      echo "HG0 Availability Failure - MySQL backends found: $hg0_avail"
+      echo "ProxySQL peers not yet configured or failed"
       exit 1
     fi
-  hg-scheduler.bash: |
+
+  drain.sh: |
+    #!/bin/bash
+    CONNECTIONS=$(mysqladmin processlist -P6032 -h127.0.0.1 -uadmin -padmin | grep [0-9] -c)
+    echo "${CONNECTIONS}"
+
+    while [[ ${CONNECTIONS} -gt 0 ]]; do
+      sleep 5
+      CONNECTIONS=$(mysqladmin processlist -P6032 -h127.0.0.1 -uadmin -padmin | grep [0-9] -c)
+      echo "${CONNECTIONS}"
+    
+    done
+
+    exit 0
+
+  config-watcher.sh: |
     #!/bin/bash
     CUR_CS=$(/usr/bin/md5sum $0 | /usr/bin/awk '{print $1}')
     PRE_CS=$(/bin/cat /tmp/cs.file | /usr/bin/awk '{print $1}')
@@ -149,10 +164,10 @@ data:
         INSERT INTO proxysql_servers (hostname,port,weight,comment) 
           VALUES ('{{ $fullname }}-{{ $e }}.{{ $fullname }}-headless',6032,{{ $e }},'{{ $fullname }}-{{ $e }}.{{ $fullname }}-headless');
         {{ end }}
+        LOAD PROXYSQL SERVERS TO RUNTIME;
         SAVE PROXYSQL SERVERS TO DISK;
 
         LOAD MYSQL QUERY RULES TO RUNTIME;
-        LOAD PROXYSQL SERVERS TO RUNTIME;
         LOAD MYSQL SERVERS TO RUNTIME;
         LOAD MYSQL USERS TO RUNTIME;
 

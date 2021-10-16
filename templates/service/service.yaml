@@ -8,8 +8,8 @@ spec:
   type: {{ .Values.service.type }}
   ports:
     - port: {{ .Values.service.port }}
-      targetPort: http
+      targetPort: proxysql
       protocol: TCP
-      name: http
+      name: proxysql
   selector:
     {{- include "proxysql.selectorLabels" . | nindent 4 }}
