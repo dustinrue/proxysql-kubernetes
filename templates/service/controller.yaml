@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "proxysql.fullname" . }}-headless
+  labels:
+    {{- include "proxysql.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  ports:
+    - port: 6032
+      targetPort: controller
+      protocol: TCP
+      name: controller
+  selector:
+    {{- include "proxysql.selectorLabels" . | nindent 4 }}
