@@ -120,7 +120,7 @@ data:
     )
 
 
-  liveness.sh: |
+  readiness.sh: |
     #!/bin/bash
     set -e
 
@@ -131,7 +131,7 @@ data:
     fi
     exit 0
 
-  readiness.sh: |
+  liveness.sh: |
     #!/bin/bash
     set -e
 
