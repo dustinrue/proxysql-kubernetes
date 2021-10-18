@@ -75,24 +75,7 @@ data:
       {{ end }}
     )
 
-    #defines MySQL Query Rules
-    mysql_query_rules:
-    (
-      {
-        rule_id=1
-        active=1
-        match_pattern="^SELECT .* FOR UPDATE$"
-        destination_hostgroup=0
-        apply=1
-      },
-      {
-        rule_id=2
-        active=1
-        match_pattern="^SELECT"
-        destination_hostgroup=1
-        apply=1
-      }
-    )
+    {{ .Values.proxysql.customConfiguration | default "" | nindent 4 }}
 
     scheduler=
     (
@@ -108,17 +91,6 @@ data:
         arg5=""
       }
     )
-
-
-    mysql_replication_hostgroups=
-    (
-            {
-                    writer_hostgroup=0
-                    reader_hostgroup=1
-                    comment="RHG1"
-          }
-    )
-
 
   readiness.sh: |
     #!/bin/bash

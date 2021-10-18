@@ -63,6 +63,36 @@ proxysql:
     persistent: false
     storageClass: ""
 
+  # Define custom configuration values here. This configuration 
+  # snippet will be appended to the proxy.cnf file.
+  # customConfiguration: |
+  #   mysql_query_rules:
+  #   (
+  #     {
+  #       rule_id=1
+  #       active=1
+  #       match_pattern="^SELECT .* FOR UPDATE$"
+  #       destination_hostgroup=0
+  #       apply=1
+  #     },
+  #     {
+  #       rule_id=2
+  #       active=1
+  #       match_pattern="^SELECT"
+  #       destination_hostgroup=1
+  #       apply=1
+  #     }
+  #   )
+
+  #   mysql_replication_hostgroups=
+  #   (
+  #     {
+  #       writer_hostgroup=0
+  #       reader_hostgroup=1
+  #       comment="RHG1"
+  #     }
+  #   )
+    
 serviceAccount:
   # Specifies whether a service account should be created
   create: true
