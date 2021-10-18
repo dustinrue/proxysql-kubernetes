@@ -98,7 +98,7 @@ data:
 
     # this needs to be smarter. It should be able to tell if the container is running
     # and accepting traffic
-    if [ ! -f /tmp/cs.file ]; then
+    if [ ! -f /var/lib/proxysql/.running ]; then
       exit 1
     fi
     exit 0
@@ -139,13 +139,13 @@ data:
   config-watcher.sh: |
     #!/bin/bash
 
-    if [ ! -f /tmp/cs.file ]; then
+    if [ ! -f /var/lib/proxysql/.running ]; then
       /usr/bin/mysql -uadmin -p{{ .Values.proxysql.admin.adminPassword }} -h127.0.0.1 -P6032 -e"
         LOAD MYSQL QUERY RULES TO RUNTIME;
         LOAD MYSQL SERVERS TO RUNTIME;
         LOAD MYSQL USERS TO RUNTIME;
       "
-      touch /tmp/cs.file
+      touch /var/lib/proxysql/.running
     fi
 
     exit 0
